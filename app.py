@@ -13,7 +13,7 @@ line_position = st.sidebar.slider("Line Position", 0.1, 0.9, 0.5)
 
 # ─── IMAGE ───────────────────────────────────────────
 if source == "Image":
-    uploaded = st.file_uploader("Image upload করো", type=["jpg", "jpeg", "png"])
+    uploaded = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
 
     if uploaded:
         annotated, counts = detect_from_image(uploaded.read())
@@ -30,21 +30,21 @@ if source == "Image":
 
 # ─── VIDEO ───────────────────────────────────────────
 elif source == "Video":
-    uploaded = st.file_uploader("Video upload করো", type=["mp4", "avi", "mov"])
+    uploaded = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if uploaded:
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
             tmp.write(uploaded.read())
             tmp_path = tmp.name
 
-        with st.spinner("Processing... একটু অপেক্ষা করো"):
+        with st.spinner("Processing... Please wait"):
             frames, all_counts, avg_speed = detect_from_video(
                 tmp_path,
                 line_position
             )
 
         if frames:
-            st.success(f"✅ Processing শেষ — {len(frames)} frames detect হয়েছে")
+            st.success(f"✅ Processing Done — {len(frames)} frames detected!")
 
             # Total count
             total = {
@@ -94,7 +94,7 @@ elif source == "Webcam":
 
             annotated, counts, crossed, results = detect_vehicles(frame, line_position)
 
-            # Speed দেখাও
+            # Speed estimation
             for i, box in enumerate(results[0].boxes):
                 box_coords = box.xyxy[0].tolist()
                 speed = estimate_speed(prev_boxes.get(i), box_coords, fps)

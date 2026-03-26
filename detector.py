@@ -3,7 +3,7 @@ from ultralytics import YOLO
 import cv2
 import numpy as np
 
-model = YOLO('yolov8s.pt')        # nano → small, বেশি accurate
+model = YOLO('yolov8s.pt')       
 
 # Vehicle classes in COCO dataset
 VEHICLE_CLASSES = {
@@ -43,7 +43,7 @@ def detect_vehicles(frame, line_position=0.5):
 
     annotated_frame = results[0].plot()
 
-    # Line আঁকো
+    # Line draw
     cv2.line(annotated_frame, (0, line_y), (width, line_y), (0, 255, 255), 2)
 
     return annotated_frame, counts, crossed, results
@@ -130,11 +130,11 @@ def run_webcam(line_position=0.5):
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
     if not cap.isOpened():
-        print("Webcam খুলতে পারছে না!")
+        print("Cannot open webcam")
         return
 
     prev_boxes = {}
-    print("চলছে... বন্ধ করতে 'q' চাপো")
+    print("Running... Press 'q' to stop")
 
     while True:
         ret, frame = cap.read()
@@ -154,7 +154,7 @@ def run_webcam(line_position=0.5):
                 cv2.putText(annotated, f'{speed} km/h', (x1, y1 - 10),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-        # Count দেখাও
+        # show counts on the frame
         y_pos = 40
         for vehicle, count in counts.items():
             cv2.putText(annotated, f'{vehicle}: {count}',
