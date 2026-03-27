@@ -1,6 +1,6 @@
 # 🚗 Vehicle Detection System
 
-A real-time vehicle detection and counting system built with YOLOv8 and Streamlit.
+A real-time traffic monitoring, vehicle detection and counting system.
 
 🔗 **Live Demo:** https://vehicle-detector-15st.onrender.com
 
