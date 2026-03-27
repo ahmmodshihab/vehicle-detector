@@ -36,13 +36,13 @@ def detect_vehicles(frame, line_position=0.5):
         # Box এর center y position
         box_center_y = int((box.xyxy[0][1] + box.xyxy[0][3]) / 2)
 
-        # Line crossing check
-        if abs(box_center_y - line_y) < 10:
+        # Line crossing check — threshold 20
+        if abs(box_center_y - line_y) < 20:
             crossed.append(vehicle_type)
 
     annotated_frame = results[0].plot()
 
-    # draw line
+    # Line draw
     cv2.line(annotated_frame, (0, line_y), (width, line_y), (0, 255, 255), 2)
 
     return annotated_frame, counts, crossed, results
@@ -66,6 +66,11 @@ def estimate_speed(box_prev, box_curr, fps, real_width_meters=4.0):
     distance_meters = pixel_movement * meters_per_pixel
 
     speed = (distance_meters * fps) * 3.6
+
+    # Unrealistic speed filtering
+    if speed > 200:
+        return 0.0
+
     return round(speed, 1)
 
 
@@ -100,7 +105,7 @@ def detect_from_video(video_path, line_position=0.5, frame_skip=3):
 
         annotated, counts, crossed, results = detect_vehicles(frame, line_position)
 
-        # cumulative count
+        #  cumulative count 
         for vehicle in crossed:
             cumulative[vehicle] += 1
 
@@ -129,7 +134,7 @@ def save_video(frames, output_path, fps=10):
     h, w = frames[0].shape[:2]
     writer = cv2.VideoWriter(
         output_path,
-        cv2.VideoWriter_fourcc(*'mp4v'),
+        cv2.VideoWriter_fourcc(*'avc1'),  # browser compatible
         fps,
         (w, h)
     )
@@ -148,7 +153,7 @@ def run_webcam(line_position=0.5):
         return
 
     prev_boxes = {}
-    print("Running webcam... Press 'q' to quit.")
+    print("Running webcam... Press 'q' to stop.")
 
     while True:
         ret, frame = cap.read()
