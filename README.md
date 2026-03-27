@@ -75,4 +75,4 @@ Streamlit displays result
 
 ---
 
-*Built by Shihab | Computer Vision Engineer*
+*Built by Ashfiq Ahmmod | Computer Vision Engineer*
