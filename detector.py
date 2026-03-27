@@ -1,9 +1,8 @@
-
 from ultralytics import YOLO
 import cv2
 import numpy as np
 
-model = YOLO('yolov8s.pt')       
+model = YOLO('yolov8s.pt')
 
 # Vehicle classes in COCO dataset
 VEHICLE_CLASSES = {
@@ -22,7 +21,7 @@ def detect_vehicles(frame, line_position=0.5):
     results = model(
         frame,
         classes=list(VEHICLE_CLASSES.keys()),
-        conf=0.25,                 # confidence threshold
+        conf=0.25,
         verbose=False
     )
 
@@ -43,7 +42,7 @@ def detect_vehicles(frame, line_position=0.5):
 
     annotated_frame = results[0].plot()
 
-    # Line draw
+    # draw line
     cv2.line(annotated_frame, (0, line_y), (width, line_y), (0, 255, 255), 2)
 
     return annotated_frame, counts, crossed, results
@@ -87,7 +86,8 @@ def detect_from_video(video_path, line_position=0.5, frame_skip=3):
     all_counts = []
     speeds = []
     prev_boxes = {}
-    frame_idx = 0                  # frame counter
+    frame_idx = 0
+    cumulative = {'car': 0, 'motorcycle': 0, 'bus': 0, 'truck': 0}
 
     while cap.isOpened():
         ret, frame = cap.read()
@@ -95,33 +95,47 @@ def detect_from_video(video_path, line_position=0.5, frame_skip=3):
             break
 
         frame_idx += 1
-
-        # প্রতি frame_skip frame এ একবার detect করো
         if frame_idx % frame_skip != 0:
             continue
 
         annotated, counts, crossed, results = detect_vehicles(frame, line_position)
+
+        # cumulative count
+        for vehicle in crossed:
+            cumulative[vehicle] += 1
 
         # Speed estimation
         current_boxes = {}
         for i, box in enumerate(results[0].boxes):
             box_coords = box.xyxy[0].tolist()
             current_boxes[i] = box_coords
-            speed = estimate_speed(
-                prev_boxes.get(i),
-                box_coords,
-                fps
-            )
+            speed = estimate_speed(prev_boxes.get(i), box_coords, fps)
             if speed > 0:
                 speeds.append(speed)
 
         prev_boxes = current_boxes
         frames.append(annotated)
-        all_counts.append(counts)
+        all_counts.append(cumulative.copy())
 
     cap.release()
     avg_speed = round(sum(speeds) / len(speeds), 1) if speeds else 0
     return frames, all_counts, avg_speed
+
+
+def save_video(frames, output_path, fps=10):
+    """Detected frames দিয়ে video file বানাবে"""
+    if not frames:
+        return
+    h, w = frames[0].shape[:2]
+    writer = cv2.VideoWriter(
+        output_path,
+        cv2.VideoWriter_fourcc(*'mp4v'),
+        fps,
+        (w, h)
+    )
+    for f in frames:
+        writer.write(f)
+    writer.release()
 
 
 def run_webcam(line_position=0.5):
@@ -130,11 +144,11 @@ def run_webcam(line_position=0.5):
     fps = cap.get(cv2.CAP_PROP_FPS) or 30
 
     if not cap.isOpened():
-        print("Cannot open webcam")
+        print("Error: Could not open webcam.")
         return
 
     prev_boxes = {}
-    print("Running... Press 'q' to stop")
+    print("Running webcam... Press 'q' to quit.")
 
     while True:
         ret, frame = cap.read()
@@ -143,7 +157,6 @@ def run_webcam(line_position=0.5):
 
         annotated, counts, crossed, results = detect_vehicles(frame, line_position)
 
-        # Speed estimation
         for i, box in enumerate(results[0].boxes):
             box_coords = box.xyxy[0].tolist()
             speed = estimate_speed(prev_boxes.get(i), box_coords, fps)
@@ -154,7 +167,6 @@ def run_webcam(line_position=0.5):
                 cv2.putText(annotated, f'{speed} km/h', (x1, y1 - 10),
                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
 
-        # show counts on the frame
         y_pos = 40
         for vehicle, count in counts.items():
             cv2.putText(annotated, f'{vehicle}: {count}',

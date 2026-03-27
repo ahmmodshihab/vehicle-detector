@@ -1,8 +1,9 @@
 import streamlit as st
 import cv2
 import tempfile
+import os
 import time
-from detector import detect_vehicles, detect_from_image, detect_from_video, estimate_speed
+from detector import detect_vehicles, detect_from_image, detect_from_video, estimate_speed, save_video
 
 st.set_page_config(page_title="Vehicle Detection", page_icon="🚗", layout="wide")
 st.title("🚗 Vehicle Detection System")
@@ -14,7 +15,7 @@ line_position = st.sidebar.slider("Line Position", 0.1, 0.9, 0.5)
 
 # ─── IMAGE ───────────────────────────────────────────
 if source == "Image":
-    uploaded = st.file_uploader("Image upload করো", type=["jpg", "jpeg", "png"])
+    uploaded = st.file_uploader("Upload Image", type=["jpg", "jpeg", "png"])
 
     if uploaded:
         annotated, counts = detect_from_image(uploaded.read())
@@ -31,56 +32,54 @@ if source == "Image":
 
 # ─── VIDEO ───────────────────────────────────────────
 elif source == "Video":
-    uploaded = st.file_uploader("Video upload করো", type=["mp4", "avi", "mov"])
+    uploaded = st.file_uploader("Upload Video", type=["mp4", "avi", "mov"])
 
     if uploaded:
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as tmp:
             tmp.write(uploaded.read())
             tmp_path = tmp.name
 
-        with st.spinner("Processing... একটু অপেক্ষা করো"):
+        with st.spinner("Processing... wait a moment"):
             frames, all_counts, avg_speed = detect_from_video(
                 tmp_path,
                 line_position
             )
 
+            # Detected video save 
+            output_path = tmp_path.replace('.mp4', '_detected.mp4')
+            save_video(frames, output_path, fps=10)
+
         if frames:
-            st.success(f"✅ {len(frames)} frames detect হয়েছে")
+            st.success(f"✅ {len(frames)} frames detected ")
 
-            # Avg speed — fixed, একবারই দেখাবে
-            st.metric("⚡ Avg Speed", f"{avg_speed} km/h")
+            # Avg speed
+            st.metric("⚡ Est. Avg Speed", f"~{avg_speed} km/h")
 
-            # Playback speed control
-            fps_control = st.slider("Playback Speed (fps)", 1, 30, 10)
+            # Final cumulative count
+            st.subheader("Total Vehicle Count")
+            final = all_counts[-1]
+            col1, col2, col3, col4 = st.columns(4)
+            col1.metric("🚗 Car", final['car'])
+            col2.metric("🏍️ Motorcycle", final['motorcycle'])
+            col3.metric("🚌 Bus", final['bus'])
+            col4.metric("🚛 Truck", final['truck'])
 
-            # Placeholder — loop এর বাইরে
-            frame_window = st.empty()
-            count_placeholder = st.empty()
+            # Smooth video playback
+            st.subheader("Detected Video")
+            st.video(output_path)
 
-            # Playback loop
-            for i, f in enumerate(frames):
-                frame_rgb = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
-                frame_window.image(frame_rgb, use_column_width=True)
-
-                # সেই frame এর count দেখাও
-                with count_placeholder.container():
-                    c1, c2, c3, c4 = st.columns(4)
-                    c1.metric("🚗 Car", all_counts[i]['car'])
-                    c2.metric("🏍️ Motorcycle", all_counts[i]['motorcycle'])
-                    c3.metric("🚌 Bus", all_counts[i]['bus'])
-                    c4.metric("🚛 Truck", all_counts[i]['truck'])
-
-                time.sleep(1 / fps_control)
+            # Cleanup
+            os.remove(tmp_path)
+            os.remove(output_path)
 
 # ─── WEBCAM ──────────────────────────────────────────
 elif source == "Webcam":
-    st.info("Webcam live feed — Start বাটন চাপো")
+    st.info("Webcam live feed — click Start")
 
     col1, col2 = st.columns(2)
     run = col1.button("▶ Start")
     stop = col2.button("⏹ Stop")
     frame_window = st.image([])
-
     count_placeholder = st.empty()
 
     if run:
@@ -95,7 +94,6 @@ elif source == "Webcam":
 
             annotated, counts, crossed, results = detect_vehicles(frame, line_position)
 
-            # Speed দেখাও
             for i, box in enumerate(results[0].boxes):
                 box_coords = box.xyxy[0].tolist()
                 speed = estimate_speed(prev_boxes.get(i), box_coords, fps)
@@ -113,7 +111,6 @@ elif source == "Webcam":
             annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
             frame_window.image(annotated_rgb, use_column_width=True)
 
-            # Live count update
             with count_placeholder.container():
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("🚗 Car", counts['car'])
