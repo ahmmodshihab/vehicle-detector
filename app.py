@@ -1,6 +1,7 @@
 import streamlit as st
 import cv2
 import tempfile
+import time
 from detector import detect_vehicles, detect_from_image, detect_from_video, estimate_speed
 
 st.set_page_config(page_title="Vehicle Detection", page_icon="🚗", layout="wide")
@@ -37,16 +38,16 @@ elif source == "Video":
             tmp.write(uploaded.read())
             tmp_path = tmp.name
 
-        with st.spinner("Processing... Please wait"):
+        with st.spinner("Processing... wait for a while"):
             frames, all_counts, avg_speed = detect_from_video(
                 tmp_path,
                 line_position
             )
 
         if frames:
-            st.success(f"✅ Processing Done — {len(frames)} frames detected!")
+            st.success(f"✅ {len(frames)} frames detected! ")
 
-            # Total count
+            # Metrics
             total = {
                 'car': max(c['car'] for c in all_counts),
                 'motorcycle': max(c['motorcycle'] for c in all_counts),
@@ -54,7 +55,6 @@ elif source == "Video":
                 'truck': max(c['truck'] for c in all_counts),
             }
 
-            # Metrics
             st.subheader("Vehicle Count")
             col1, col2, col3, col4, col5 = st.columns(5)
             col1.metric("🚗 Car", total['car'])
@@ -63,23 +63,26 @@ elif source == "Video":
             col4.metric("🚛 Truck", total['truck'])
             col5.metric("⚡ Avg Speed", f"{avg_speed} km/h")
 
+            # Playback speed control
+            fps_control = st.slider("Playback Speed (fps)", 1, 30, 10)
+
             # Video playback
-            st.subheader("Detected Video")
-            frame_window = st.image([])
+            frame_window = st.empty()
+
             for f in frames:
                 frame_rgb = cv2.cvtColor(f, cv2.COLOR_BGR2RGB)
                 frame_window.image(frame_rgb, use_column_width=True)
+                time.sleep(1 / fps_control)
 
 # ─── WEBCAM ──────────────────────────────────────────
 elif source == "Webcam":
-    st.info("Webcam live feed — Start বাটন চাপো")
+    st.info("Webcam live feed — click Start")
 
     col1, col2 = st.columns(2)
     run = col1.button("▶ Start")
     stop = col2.button("⏹ Stop")
     frame_window = st.image([])
 
-    # Count placeholder
     count_placeholder = st.empty()
 
     if run:
@@ -112,7 +115,7 @@ elif source == "Webcam":
             annotated_rgb = cv2.cvtColor(annotated, cv2.COLOR_BGR2RGB)
             frame_window.image(annotated_rgb, use_column_width=True)
 
-            # Count live update
+            # Live count update
             with count_placeholder.container():
                 c1, c2, c3, c4 = st.columns(4)
                 c1.metric("🚗 Car", counts['car'])
